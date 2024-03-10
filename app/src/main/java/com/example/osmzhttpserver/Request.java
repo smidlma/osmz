@@ -4,9 +4,9 @@ import java.util.List;
 
 public class Request {
 
-    private String method;
-    private String version;
-    private String path;
+    private final String method;
+    private final String version;
+    private final String path;
 
     public Request(List<String> requestHeaders){
        String[] firstLine = requestHeaders.get(0).split(" ");
@@ -25,5 +25,9 @@ public class Request {
 
     public String getPath() {
         return path;
+    }
+
+    public String getHeader(){
+        return method + " " + path + " " + version;
     }
 }
