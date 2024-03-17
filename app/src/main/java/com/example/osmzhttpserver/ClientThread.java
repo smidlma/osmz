@@ -1,89 +1,100 @@
 package com.example.osmzhttpserver;
 
-import android.os.Bundle;
 import android.os.Handler;
-import android.os.Message;
 import android.util.Log;
-
-import java.io.File;
+import com.example.osmzhttpserver.controller.FileController;
+import com.example.osmzhttpserver.http.HttpDecoder;
+import com.example.osmzhttpserver.http.HttpRequest;
+import com.example.osmzhttpserver.http.HttpResponse;
+import com.example.osmzhttpserver.http.RequestRunner;
+import com.example.osmzhttpserver.http.ResponseWriter;
+import com.example.osmzhttpserver.service.LogService;
+import java.io.BufferedOutputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Date;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.Socket;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Semaphore;
 
 public class ClientThread extends Thread {
-    private final SocketService socketService;
-    private final FileService fileService;
 
-    private final Semaphore semaphore;
+  private final Map<String, RequestRunner> routes;
+  private final Socket clientSocket;
+  private final Semaphore semaphore;
 
-    private final LogService logService;
+  private final LogService logService;
 
-    final String NOT_FOUND_RESP = "HTTP/1.0 404 Not Found\n" +
-            "Date: Fri, 31 Dec 1999 23:59:59 GMT\n" +
-            "Content-Type: text/html\n" +
-            "Content-Length: 1354\n" +
-            "\n" +
-            "<html>\n" +
-            "<body>\n" +
-            "<h1>404 Not Found</h1>\n" +
-            "Unable to locate the file\n" +
-            "  .\n" +
-            "  .\n" +
-            "  .\n" +
-            "</body>\n" +
-            "</html>";
 
-    public ClientThread(SocketService socketService, Semaphore semaphore, Handler handler) {
-        this.socketService = socketService;
-        this.semaphore = semaphore;
-        this.fileService = new FileService();
-        this.logService = new LogService(fileService, handler);
+  public ClientThread(Socket clientSocket, Semaphore semaphore, Handler handler,
+      Map<String, RequestRunner> routes, LogService logService) {
+    this.clientSocket = clientSocket;
+    this.semaphore = semaphore;
+    this.routes = routes;
+    this.logService = logService;
+  }
+
+  @Override
+  public void run() {
+    try {
+//            String serverLogMsg = socketService.getSocket().getInetAddress().getHostAddress() +
+//                    " - - " + new Date() + " "
+//                    + request.getHeader() + " - " + socketService.getSocket().getInetAddress().getHostName();
+//
+//            logService.logAccess(serverLogMsg);
+//
+//            Log.d("SERVER", "ThreadId: " + this.getId() +
+//                    " Available connections: " +
+//                    semaphore.availablePermits());
+//
+//
+      handleConnection(clientSocket.getInputStream(),
+          clientSocket.getOutputStream());
+
+    } catch (IOException e) {
+      Log.e("SERVER", "Connection interrupted");
+//      logService.logError("Connection interrupted, closing the socket");
+    } finally {
+      try {
+        clientSocket.close();
+      } catch (IOException ignore) {
+//        throw new RuntimeException(e);
+      } finally {
+        semaphore.release();
+      }
+    }
+  }
+
+  public void handleConnection(final InputStream inputStream, final OutputStream outputStream)
+      throws IOException {
+    final BufferedOutputStream bufferedWriter = new BufferedOutputStream(
+        new DataOutputStream(outputStream));
+    Optional<HttpRequest> request = HttpDecoder.decode(inputStream);
+    if (request.isPresent()) {
+      logService.logAccess(request.get(), clientSocket);
+      handleRequest(request.get(), bufferedWriter);
+    } else {
+      handleInvalidRequest(bufferedWriter);
     }
 
+    bufferedWriter.close();
+    inputStream.close();
+  }
 
-    @Override
-    public void run() {
-        try {
-            Request request = socketService.getRequestFromSocket();
-            String mimeType = fileService.getMimeType(request.getPath());
-            File file = fileService.getFileFromExternalStorage(request.getPath());
+  private void handleRequest(final HttpRequest request, final BufferedOutputStream bufferedWriter) {
+    final String routeKey = request.getHttpMethod().name().concat(request.getUri().getRawPath());
 
-            String serverLogMsg = socketService.getSocket().getInetAddress().getHostAddress() +
-                    " - - " + new Date() + " "
-                    + request.getHeader() + " - " + socketService.getSocket().getInetAddress().getHostName();
-
-            logService.logAccess(serverLogMsg);
-
-            Log.d("SERVER", "ThreadId: " + this.getId() +
-                    " Available connections: " +
-                    semaphore.availablePermits());
-
-
-            if (file != null) {
-                byte[] content = fileService.getFileContent(file);
-                String responseHeader = getResponseHeader(mimeType, content.length);
-                socketService.writeToSocket(Arrays.asList(responseHeader.getBytes(), content));
-            } else {
-                socketService.writeToSocket(Collections.singletonList(NOT_FOUND_RESP.getBytes()));
-            }
-
-        } catch (IOException e) {
-            Log.e("SERVER", "Connection interrupted");
-            logService.logError("Connection interrupted, closing the socket");
-        } finally {
-            socketService.close();
-            semaphore.release();
-        }
-
+    if (routes.containsKey(routeKey)) {
+      ResponseWriter.writeResponse(bufferedWriter, routes.get(routeKey).run(request));
+    } else {
+      ResponseWriter.writeResponse(bufferedWriter, new FileController().getStaticAsset(request));
     }
+  }
 
-    String getResponseHeader(String contentType, int contentLength) {
-        return "HTTP/1.0 200 OK\n" +
-                "Date: " + new Date() + "\n" +
-                "Content-Type: " + contentType + "\n" +
-                "Content-Length: " + contentLength + "\n" +
-                "\n";
-    }
+  private void handleInvalidRequest(final BufferedOutputStream bufferedWriter) {
+    ResponseWriter.writeResponse(bufferedWriter,
+        new HttpResponse.Builder().setStatusCode(400).build());
+  }
 }

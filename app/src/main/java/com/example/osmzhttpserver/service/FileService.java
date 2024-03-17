@@ -1,4 +1,4 @@
-package com.example.osmzhttpserver;
+package com.example.osmzhttpserver.service;
 
 import android.os.Environment;
 import android.webkit.MimeTypeMap;

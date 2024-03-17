@@ -4,90 +4,92 @@ import android.content.Context;
 import android.os.Handler;
 import android.util.Log;
 
+import com.example.osmzhttpserver.http.HttpMethod;
+import com.example.osmzhttpserver.http.HttpResponse;
+import com.example.osmzhttpserver.http.RequestRunner;
+import com.example.osmzhttpserver.http.ResponseWriter;
+import com.example.osmzhttpserver.service.LogService;
+import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.Collections;
-import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.Semaphore;
 
 public class SocketServer extends Thread {
 
-    ServerSocket serverSocket;
-    private static final int MAX_CONNECTIONS = 2;
-    private final Semaphore semaphore = new Semaphore(MAX_CONNECTIONS, true);
-    public final int port = 12345;
-    boolean bRunning;
+  private ServerSocket serverSocket;
+  private final Map<String, RequestRunner> routes;
 
-    Context context;
+  private static final int MAX_CONNECTIONS = 2;
+  private final Semaphore semaphore = new Semaphore(MAX_CONNECTIONS, true);
+  public final int port = 12345;
+  boolean bRunning;
 
-    Handler handler;
+  Context context;
 
-    final String UNAVAILABLE_RESP = "HTTP/1.0 503 Service Unavailable\n" +
-            "Date: " + new Date() + "\n" +
-            "Content-Type: text/html\n" +
-            "Content-Length: 1354\n" +
-            "\n" +
-            "<html>\n" +
-            "<body>\n" +
-            "<h1>Service Unavailable</h1>\n" +
-            "Unable to locate the file\n" +
-            "  .\n" +
-            "  .\n" +
-            "  .\n" +
-            "</body>\n" +
-            "</html>";
+  Handler handler;
 
+  private final LogService logService;
 
-    public SocketServer(Context context, Handler handler) {
-        this.context = context;
-        this.handler = handler;
+  public SocketServer(Context context, Handler handler) {
+    this.routes = new HashMap<>();
+    this.context = context;
+    this.handler = handler;
+    this.logService = new LogService(handler);
+  }
+
+  public void close() {
+    try {
+      serverSocket.close();
+    } catch (IOException e) {
+      Log.d("SERVER", "Error, probably interrupted in accept(), see log");
+      e.printStackTrace();
     }
+    bRunning = false;
+  }
 
-    public void close() {
-        try {
-            serverSocket.close();
-        } catch (IOException e) {
-            Log.d("SERVER", "Error, probably interrupted in accept(), see log");
-            e.printStackTrace();
-        }
-        bRunning = false;
+  public void run() {
+    try {
+      Log.d("SERVER", "Creating Socket");
+      serverSocket = new ServerSocket(port);
+      bRunning = true;
+
+      while (bRunning) {
+        Log.d("SERVER", "Socket Waiting for connection");
+        Socket clientConnection = serverSocket.accept();
+        Log.d("SERVER", "Socket Accepted");
+        handleConnection(clientConnection);
+      }
+    } catch (IOException e) {
+      if (serverSocket != null && serverSocket.isClosed()) {
+        Log.d("SERVER", "Normal exit");
+      } else {
+        Log.d("SERVER", "Error");
+        e.printStackTrace();
+      }
+    } finally {
+      serverSocket = null;
+      bRunning = false;
     }
+  }
 
-    public void run() {
-        try {
-            Log.d("SERVER", "Creating Socket");
-            serverSocket = new ServerSocket(port);
-            bRunning = true;
-
-
-            while (bRunning) {
-                Log.d("SERVER", "Socket Waiting for connection");
-                Socket s = serverSocket.accept();
-                Log.d("SERVER", "Socket Accepted");
-                SocketService socketService = new SocketService(s);
-                if (semaphore.tryAcquire()) {
-                    new ClientThread(socketService, semaphore, handler).start();
-                } else {
-                    socketService.writeToSocket(Collections.singletonList(UNAVAILABLE_RESP.getBytes()));
-                    s.close();
-                }
-
-
-            }
-        } catch (IOException e) {
-            if (serverSocket != null && serverSocket.isClosed())
-                Log.d("SERVER", "Normal exit");
-            else {
-                Log.d("SERVER", "Error");
-                e.printStackTrace();
-            }
-        } finally {
-            serverSocket = null;
-            bRunning = false;
-        }
+  private void handleConnection(Socket clientConnection) {
+    try {
+      if (semaphore.tryAcquire()) {
+        new ClientThread(clientConnection, semaphore, handler, routes, logService).start();
+      } else {
+        ResponseWriter.writeResponse(new BufferedOutputStream(clientConnection.getOutputStream()),
+            new HttpResponse.Builder().setStatusCode(503).setEntity("Service Unavailable").build());
+        clientConnection.close();
+      }
+    } catch (IOException ignored) {
     }
+  }
 
-
+  public void addRoute(final HttpMethod opCode, final String route, final RequestRunner runner) {
+    routes.put(opCode.name().concat(route), runner);
+  }
 }
 
