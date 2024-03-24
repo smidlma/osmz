@@ -34,7 +34,7 @@ public class LogService {
 
 
   public void logAccess(String msg) {
-    File file = fileService.getFileFromExternalStorage(ACCESS_LOG_FILE);
+    File file = fileService.getFileOrDirFromExternalStorage(ACCESS_LOG_FILE);
     try {
       fileService.appendToFile(file, msg);
       sendToHandler("ACCESS", msg);
@@ -45,7 +45,7 @@ public class LogService {
   }
 
   public void logError(String msg) {
-    File file = fileService.getFileFromExternalStorage(ERRORS_LOG_FILE);
+    File file = fileService.getFileOrDirFromExternalStorage(ERRORS_LOG_FILE);
     try {
       fileService.appendToFile(file, msg);
       sendToHandler("ERROR", msg);

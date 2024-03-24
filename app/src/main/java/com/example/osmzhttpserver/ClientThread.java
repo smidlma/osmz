@@ -15,9 +15,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Semaphore;
+import java.util.stream.Collectors;
 
 public class ClientThread extends Thread {
 
@@ -39,31 +42,17 @@ public class ClientThread extends Thread {
   @Override
   public void run() {
     try {
-//            String serverLogMsg = socketService.getSocket().getInetAddress().getHostAddress() +
-//                    " - - " + new Date() + " "
-//                    + request.getHeader() + " - " + socketService.getSocket().getInetAddress().getHostName();
-//
-//            logService.logAccess(serverLogMsg);
-//
-//            Log.d("SERVER", "ThreadId: " + this.getId() +
-//                    " Available connections: " +
-//                    semaphore.availablePermits());
-//
-//
+      Log.d("SERVER", "ThreadId: " + this.getId() +
+          " Available connections: " +
+          semaphore.availablePermits());
+
       handleConnection(clientSocket.getInputStream(),
           clientSocket.getOutputStream());
 
     } catch (IOException e) {
       Log.e("SERVER", "Connection interrupted");
-//      logService.logError("Connection interrupted, closing the socket");
     } finally {
-      try {
-        clientSocket.close();
-      } catch (IOException ignore) {
-//        throw new RuntimeException(e);
-      } finally {
-        semaphore.release();
-      }
+      semaphore.release();
     }
   }
 
@@ -86,10 +75,13 @@ public class ClientThread extends Thread {
   private void handleRequest(final HttpRequest request, final BufferedOutputStream bufferedWriter) {
     final String routeKey = request.getHttpMethod().name().concat(request.getUri().getRawPath());
 
-    if (routes.containsKey(routeKey)) {
-      ResponseWriter.writeResponse(bufferedWriter, routes.get(routeKey).run(request));
+    List<String> matchedRoutes = routes.keySet().stream().filter(key -> routeKey.matches(key))
+        .collect(Collectors.toList());
+    if (!matchedRoutes.isEmpty()) {
+      String routeKeyName = matchedRoutes.get(0);
+      ResponseWriter.writeResponse(bufferedWriter, routes.get(routeKeyName).run(request));
     } else {
-      ResponseWriter.writeResponse(bufferedWriter, new FileController().getStaticAsset(request));
+      ResponseWriter.writeResponse(bufferedWriter, new FileController().accessFileSystem(request));
     }
   }
 

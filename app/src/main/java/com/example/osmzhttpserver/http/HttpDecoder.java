@@ -38,7 +38,7 @@ public class HttpDecoder {
     try {
       Builder requestBuilder = new Builder();
       requestBuilder.setHttpMethod(HttpMethod.valueOf(httpInfo[0]));
-      requestBuilder.setUri(new URI(httpInfo[1].equals("/") ? "/index.html" : httpInfo[1]));
+      requestBuilder.setUri(new URI(httpInfo[1].equals("/") ? "/index.html" : httpInfo[1].replace("%", "&")));
       return Optional.of(addRequestHeaders(message, requestBuilder));
     } catch (URISyntaxException | IllegalArgumentException e) {
       return Optional.empty();

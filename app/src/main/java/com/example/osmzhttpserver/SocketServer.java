@@ -22,7 +22,7 @@ public class SocketServer extends Thread {
   private ServerSocket serverSocket;
   private final Map<String, RequestRunner> routes;
 
-  private static final int MAX_CONNECTIONS = 2;
+  private static final int MAX_CONNECTIONS = 30;
   private final Semaphore semaphore = new Semaphore(MAX_CONNECTIONS, true);
   public final int port = 12345;
   boolean bRunning;

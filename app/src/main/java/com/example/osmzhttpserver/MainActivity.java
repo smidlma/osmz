@@ -11,6 +11,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
+import com.example.osmzhttpserver.controller.SystemController;
 import com.example.osmzhttpserver.controller.TelemetryController;
 import com.example.osmzhttpserver.http.HttpMethod;
 import com.example.osmzhttpserver.http.HttpResponse;
@@ -52,6 +53,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
       s = new SocketServer(this, handler);
       TelemetryController telemetryController = new TelemetryController(new LocationService(this),
           new SensorService(this));
+      SystemController systemController = new SystemController();
       s.addRoute(HttpMethod.GET, "/streams/telemetry",
           (req) -> new HttpResponse.Builder().setEntity(
                   "<a href='/streams/telemetry/location'> /streams/telemetry/location </a> "
@@ -62,6 +64,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
           (req) -> telemetryController.getLocation());
       s.addRoute(HttpMethod.GET, "/streams/telemetry/sensors",
           (req) -> telemetryController.getSensorsData());
+      s.addRoute(HttpMethod.GET, "/cmd/.*", (req) -> systemController.processCommand(req));
       s.start();
     }
     if (v.getId() == R.id.button2) {

@@ -14,17 +14,22 @@ public class FileController {
     this.fileService = new FileService();
   }
 
-  public HttpResponse getStaticAsset(HttpRequest req) {
-    File file = fileService.getFileFromExternalStorage(req.getUri().getRawPath());
-    String mimeType = fileService.getMimeType(req.getUri().getRawPath());
-
-    if (file != null) {
-      byte[] content = fileService.getFileContent(file);
-      return new HttpResponse.Builder().setStatusCode(200).addHeader("Content-Type", mimeType)
-          .setEntity(content).build();
-    } else {
+  public HttpResponse accessFileSystem(HttpRequest req) {
+    File fileOrDir = fileService.getFileOrDirFromExternalStorage(req.getUri().getRawPath());
+    if (fileOrDir == null) {
       return new HttpResponse.Builder().setStatusCode(404).setEntity("Resource not found 404")
           .build();
     }
+
+    if (fileOrDir.isFile()) {
+      String mimeType = fileService.getMimeType(fileOrDir.getName());
+      byte[] content = fileService.getFileContent(fileOrDir);
+      return new HttpResponse.Builder().setStatusCode(200).addHeader("Content-Type", mimeType)
+          .setEntity(content).build();
+    }
+
+    String dirEntity = fileService.getDirectoryExplorer(fileOrDir);
+    return new HttpResponse.Builder().setStatusCode(200).addHeader("Content-Type", "text/html")
+        .setEntity(dirEntity).build();
   }
 }
