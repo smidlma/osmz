@@ -8,13 +8,16 @@ public class HttpRequest {
   private final HttpMethod httpMethod;
   private final URI uri;
   private final Map<String, List<String>> requestHeaders;
+  private final byte[] body;
+
   private HttpRequest(HttpMethod opCode,
       URI uri,
-      Map<String, List<String>> requestHeaders)
+      Map<String, List<String>> requestHeaders, byte[] body)
   {
     this.httpMethod = opCode;
     this.uri = uri;
     this.requestHeaders = requestHeaders;
+    this.body = body;
   }
 
   public URI getUri() {
@@ -29,10 +32,15 @@ public class HttpRequest {
     return requestHeaders;
   }
 
+  public byte[] getBody() {
+    return body;
+  }
+
   public static class Builder {
     private HttpMethod httpMethod;
     private URI uri;
     private Map<String, List<String>> requestHeaders;
+    private byte[] body;
 
     public Builder() {
     }
@@ -49,8 +57,12 @@ public class HttpRequest {
       this.requestHeaders = requestHeaders;
     }
 
+    public void setBody(byte[] body) {
+      this.body = body;
+    }
+
     public HttpRequest build() {
-      return new HttpRequest(httpMethod, uri, requestHeaders);
+      return new HttpRequest(httpMethod, uri, requestHeaders, body);
     }
   }
 }

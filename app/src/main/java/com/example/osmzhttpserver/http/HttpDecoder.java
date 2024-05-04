@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Scanner;
+import java.util.stream.Collectors;
 
 public class HttpDecoder {
 
@@ -39,6 +40,13 @@ public class HttpDecoder {
       Builder requestBuilder = new Builder();
       requestBuilder.setHttpMethod(HttpMethod.valueOf(httpInfo[0]));
       requestBuilder.setUri(new URI(httpInfo[1].equals("/") ? "/index.html" : httpInfo[1].replace("%", "&")));
+
+      List<String> data = message.stream().filter(line -> message.indexOf(line) > message.indexOf("\n")).collect(
+          Collectors.toList());
+      if(data.size() > 0) {
+        requestBuilder.setBody(String.join("\n", data).getBytes());
+      }
+
       return Optional.of(addRequestHeaders(message, requestBuilder));
     } catch (URISyntaxException | IllegalArgumentException e) {
       return Optional.empty();

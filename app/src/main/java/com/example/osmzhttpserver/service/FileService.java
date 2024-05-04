@@ -97,4 +97,12 @@ public class FileService {
       fileWriter.write('\n');
     }
   }
+
+  public void saveFile(String fileName, byte[] content) throws IOException {
+    File directory = new File(Environment.getExternalStorageDirectory(), SERVER_CONTENT_DIR);
+    File pathToFile = new File(directory, fileName);
+    try (FileWriter fileWriter = new FileWriter(pathToFile)) {
+      fileWriter.write(new String(content));
+    }
+  }
 }

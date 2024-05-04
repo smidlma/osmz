@@ -26,14 +26,25 @@
         app:layout_constraintTop_toBottomOf="@+id/button1" />
 
     <TextView
-        android:id="@+id/logTextView"
-        android:layout_width="294dp"
-        android:layout_height="407dp"
-        android:layout_marginBottom="40dp"
-        android:text="Server Access Logs"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.495"
-        app:layout_constraintStart_toStartOf="parent" />
+      android:id="@+id/logTextView"
+      android:layout_width="294dp"
+      android:layout_height="280dp"
+      android:layout_marginBottom="40dp"
+      android:text="Server Access Logs"
+      app:layout_constraintBottom_toBottomOf="parent"
+      app:layout_constraintEnd_toEndOf="parent"
+      app:layout_constraintHorizontal_bias="0.495"
+      app:layout_constraintStart_toStartOf="parent" />
 
+    <FrameLayout
+      android:id="@+id/camera_preview"
+      android:layout_width="410dp"
+      android:layout_height="245dp"
+      android:layout_weight="1"
+      app:layout_constraintBottom_toTopOf="@+id/logTextView"
+      app:layout_constraintEnd_toEndOf="parent"
+      app:layout_constraintHorizontal_bias="0.0"
+      app:layout_constraintStart_toStartOf="parent"
+      app:layout_constraintTop_toBottomOf="@+id/button2"
+      app:layout_constraintVertical_bias="0.666" />
 </androidx.constraintlayout.widget.ConstraintLayout>
